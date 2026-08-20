@@ -1,9 +1,10 @@
-package liquibase.database.core;
+package com.github.mengweijin.liquibase.dameng.database;
 
 import liquibase.GlobalConfiguration;
 import liquibase.Scope;
 import liquibase.database.DatabaseConnection;
 import liquibase.database.OfflineConnection;
+import liquibase.database.core.OracleDatabase;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.DatabaseException;
 import liquibase.exception.UnexpectedLiquibaseException;
@@ -11,8 +12,8 @@ import liquibase.util.JdbcUtil;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Liquibase database extension for Dameng DM.
@@ -58,10 +59,10 @@ public class DmDatabase extends OracleDatabase {
             return;
         }
 
-        PreparedStatement statement = null;
+        Statement statement = null;
         try {
-            statement = connection.prepareStatement("ALTER SESSION SET DDL_LOCK_TIMEOUT=" + timeout);
-            statement.execute();
+            statement = connection.createStatement();
+            statement.execute("ALTER SESSION SET DDL_LOCK_TIMEOUT=" + timeout);
         } catch (SQLException e) {
             Scope.getCurrentScope().getLog(getClass()).warning("Unable to set DM DDL_LOCK_TIMEOUT: " + e.getMessage(), e);
         } finally {

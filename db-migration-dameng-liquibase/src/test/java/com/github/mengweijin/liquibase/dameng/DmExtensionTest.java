@@ -1,5 +1,6 @@
 package com.github.mengweijin.liquibase.dameng;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import com.github.mengweijin.liquibase.dameng.datatype.DmBooleanType;
 import com.github.mengweijin.liquibase.dameng.datatype.DmCharType;
 import com.github.mengweijin.liquibase.dameng.snapshot.DmColumnSnapshotGenerator;
@@ -11,7 +12,6 @@ import com.github.mengweijin.liquibase.dameng.snapshot.DmUniqueConstraintSnapsho
 import com.github.mengweijin.liquibase.dameng.snapshot.DmViewSnapshotGenerator;
 import liquibase.Scope;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.database.core.MockDatabase;
 import liquibase.database.core.OracleDatabase;
 import liquibase.datatype.DataTypeFactory;
@@ -27,6 +27,7 @@ import liquibase.structure.core.Schema;
 import liquibase.structure.core.Table;
 import liquibase.structure.core.UniqueConstraint;
 import liquibase.structure.core.View;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -37,6 +38,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DmExtensionTest {
+
+    @AfterEach
+    void resetSnapshotGeneratorFactory() {
+        SnapshotGeneratorFactory.resetAll();
+    }
 
     @Test
     void databaseAndServicesAreRegistered() throws Exception {
@@ -74,13 +80,13 @@ class DmExtensionTest {
         assertFalse(charType.supports(new OracleDatabase()));
         assertEquals("NUMBER(1)", booleanType.toDatabaseDataType(dm).toString());
         assertEquals("'a''b'", charType.objectToSql("a'b", dm));
+        assertTrue(charType.objectToSql("x".repeat(4001), dm).startsWith("to_clob("));
         assertEquals(DmBooleanType.class, DataTypeFactory.getInstance().fromDescription("boolean", dm).getClass());
         assertEquals(DmCharType.class, DataTypeFactory.getInstance().fromDescription("char(16)", dm).getClass());
     }
 
     @Test
     void snapshotGeneratorsRejectOtherDatabases() {
-        SnapshotGeneratorFactory.resetAll();
         SnapshotGeneratorFactory.getInstance();
         SnapshotGenerator generator = new DmColumnSnapshotGenerator();
         assertTrue(generator.getPriority(Column.class, new DmDatabase()) > SnapshotGenerator.PRIORITY_NONE);

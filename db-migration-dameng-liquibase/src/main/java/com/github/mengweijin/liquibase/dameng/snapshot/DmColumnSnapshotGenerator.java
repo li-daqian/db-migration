@@ -1,7 +1,7 @@
 package com.github.mengweijin.liquibase.dameng.snapshot;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
 import liquibase.snapshot.DatabaseSnapshot;

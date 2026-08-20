@@ -1,5 +1,6 @@
 package com.github.mengweijin.liquibase.dameng;
 
+import com.github.mengweijin.liquibase.dameng.snapshot.DmPrimaryKeySnapshotGenerator;
 import liquibase.Contexts;
 import liquibase.LabelExpression;
 import liquibase.Liquibase;
@@ -18,7 +19,10 @@ import liquibase.resource.ClassLoaderResourceAccessor;
 import liquibase.snapshot.DatabaseSnapshot;
 import liquibase.snapshot.SnapshotControl;
 import liquibase.snapshot.SnapshotGeneratorFactory;
+import liquibase.structure.DatabaseObject;
+import liquibase.structure.core.ForeignKey;
 import liquibase.structure.core.Index;
+import liquibase.structure.core.PrimaryKey;
 import liquibase.structure.core.Table;
 import liquibase.structure.core.UniqueConstraint;
 import liquibase.structure.core.View;
@@ -30,6 +34,7 @@ import java.sql.DriverManager;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DmLiquibaseIT {
@@ -55,7 +60,8 @@ class DmLiquibaseIT {
                  Liquibase liquibase = new Liquibase("dm-integration-changelog.xml", accessor, database)) {
                 Contexts contexts = new Contexts();
                 LabelExpression labels = new LabelExpression();
-                int appliedChangeSets = 2 - liquibase.listUnrunChangeSets(contexts, labels).size();
+                int totalChangeSets = liquibase.getDatabaseChangeLog().getChangeSets().size();
+                int appliedChangeSets = totalChangeSets - liquibase.listUnrunChangeSets(contexts, labels).size();
                 if (appliedChangeSets > 0) {
                     liquibase.rollback(appliedChangeSets, contexts, labels);
                 }
@@ -79,12 +85,13 @@ class DmLiquibaseIT {
                  Liquibase liquibase = new Liquibase("dm-integration-changelog.xml", accessor, database)) {
                 Contexts contexts = new Contexts();
                 LabelExpression labels = new LabelExpression();
+                int totalChangeSets = liquibase.getDatabaseChangeLog().getChangeSets().size();
 
                 liquibase.update(contexts, labels);
                 assertTrue(liquibase.listUnrunChangeSets(contexts, labels).isEmpty());
 
-                liquibase.rollback(2, contexts, labels);
-                assertEquals(2, liquibase.listUnrunChangeSets(contexts, labels).size());
+                liquibase.rollback(totalChangeSets, contexts, labels);
+                assertEquals(totalChangeSets, liquibase.listUnrunChangeSets(contexts, labels).size());
             }
         }
     }
@@ -118,6 +125,9 @@ class DmLiquibaseIT {
                 Table child = snapshot.get(Table.class).stream()
                         .filter(table -> "DM_LB_CHILD".equalsIgnoreCase(table.getName()))
                         .findFirst().orElseThrow();
+                ForeignKey childToParent = child.getOutgoingForeignKeys().stream()
+                        .filter(foreignKey -> "FK_DM_LB_CHILD_PARENT".equalsIgnoreCase(foreignKey.getName()))
+                        .findFirst().orElseThrow();
                 assertAll(
                         () -> assertTrue(control.shouldInclude(UniqueConstraint.class)),
                         () -> assertEquals(2, parent.getColumns().size()),
@@ -125,13 +135,26 @@ class DmLiquibaseIT {
                         () -> assertFalse(parent.getUniqueConstraints().isEmpty()),
                         () -> assertEquals(3, child.getColumns().size()),
                         () -> assertTrue(child.getPrimaryKey() != null),
-                        () -> assertTrue(child.getOutgoingForeignKeys().stream()
-                                .anyMatch(foreignKey -> "FK_DM_LB_CHILD_PARENT".equalsIgnoreCase(foreignKey.getName()))),
+                        () -> assertEquals(child.getSchema().getCatalogName(),
+                                childToParent.getForeignKeyTable().getSchema().getCatalogName()),
+                        () -> assertEquals(child.getSchema().getName(),
+                                childToParent.getForeignKeyTable().getSchema().getName()),
                         () -> assertTrue(child.getIndexes().stream().map(Index::getName)
                                 .anyMatch("IDX_DM_LB_CHILD_PARENT"::equalsIgnoreCase)),
                         () -> assertTrue(snapshot.get(View.class).stream()
                                 .anyMatch(view -> "DM_LB_CHILD_VIEW".equalsIgnoreCase(view.getName())))
                 );
+
+                SnapshotControl tablesOnlyControl = new SnapshotControl(database, Table.class);
+                DatabaseSnapshot tablesOnlySnapshot = SnapshotGeneratorFactory.getInstance()
+                        .createSnapshot(database.getDefaultSchema(), database, tablesOnlyControl);
+                assertFalse(tablesOnlyControl.shouldInclude(Index.class));
+                assertTrue(tablesOnlySnapshot.get(Table.class).stream()
+                        .allMatch(table -> table.getIndexes().isEmpty()));
+
+                PrimaryKey unidentifiedPrimaryKey = new PrimaryKey();
+                assertNull(new TestableDmPrimaryKeySnapshotGenerator()
+                        .snapshotUnidentified(unidentifiedPrimaryKey, snapshot));
 
                 DatabaseSnapshot comparison = SnapshotGeneratorFactory.getInstance()
                         .createSnapshot(database.getDefaultSchema(), database, control);
@@ -146,9 +169,16 @@ class DmLiquibaseIT {
 
     private String requiredProperty(String name) {
         String value = System.getProperty(name);
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || value.startsWith("${")) {
             throw new IllegalStateException(name + " must be configured by the dm-integration Maven profile");
         }
         return value;
+    }
+
+    private static final class TestableDmPrimaryKeySnapshotGenerator extends DmPrimaryKeySnapshotGenerator {
+
+        private DatabaseObject snapshotUnidentified(PrimaryKey primaryKey, DatabaseSnapshot snapshot) throws Exception {
+            return snapshotObject(primaryKey, snapshot);
+        }
     }
 }

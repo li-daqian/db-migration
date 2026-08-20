@@ -1,7 +1,7 @@
 package com.github.mengweijin.liquibase.dameng.snapshot;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
 import liquibase.snapshot.DatabaseSnapshot;
@@ -48,9 +48,13 @@ public class DmUniqueConstraintSnapshotGenerator extends UniqueConstraintSnapsho
                 first.getString("CONSTRAINT_SCHEM"), relation.getName()));
         result.setShouldValidate("VALIDATED".equalsIgnoreCase(first.getString("CONSTRAINT_VALIDATE")));
         for (CachedRow row : rows) {
+            String columnName = row.getString("COLUMN_NAME");
+            if (columnName == null) {
+                continue;
+            }
             String direction = row.getString("ASC_OR_DESC");
             Boolean descending = "D".equals(direction) ? Boolean.TRUE : ("A".equals(direction) ? Boolean.FALSE : null);
-            result.getColumns().add(new Column(row.getString("COLUMN_NAME")).setDescending(descending)
+            result.getColumns().add(new Column(columnName).setDescending(descending)
                     .setRelation(relation));
         }
         return result;

@@ -9,15 +9,17 @@ final class DmSnapshotGeneratorPriority {
     }
 
     static int fromCore(SnapshotGenerator generator, Class<? extends DatabaseObject> objectType, int corePriority) {
+        if (corePriority == SnapshotGenerator.PRIORITY_NONE) {
+            return SnapshotGenerator.PRIORITY_NONE;
+        }
         Class<? extends DatabaseObject>[] containers = generator.addsTo();
-        if (containers != null) {
+        if (objectType != null && containers != null) {
             for (Class<? extends DatabaseObject> container : containers) {
                 if (container.isAssignableFrom(objectType)) {
-                    return SnapshotGenerator.PRIORITY_ADDITIONAL + 1;
+                    return SnapshotGenerator.PRIORITY_ADDITIONAL;
                 }
             }
         }
-        return corePriority == SnapshotGenerator.PRIORITY_NONE
-                ? SnapshotGenerator.PRIORITY_NONE : corePriority + 1;
+        return corePriority;
     }
 }

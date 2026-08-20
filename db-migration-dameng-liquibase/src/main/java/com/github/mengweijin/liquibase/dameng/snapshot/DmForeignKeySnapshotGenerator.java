@@ -1,9 +1,9 @@
 package com.github.mengweijin.liquibase.dameng.snapshot;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.CatalogAndSchema;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.diff.compare.DatabaseObjectComparatorFactory;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
@@ -12,7 +12,6 @@ import liquibase.snapshot.InvalidExampleException;
 import liquibase.snapshot.SnapshotGenerator;
 import liquibase.snapshot.jvm.ForeignKeySnapshotGenerator;
 import liquibase.structure.DatabaseObject;
-import liquibase.structure.core.Catalog;
 import liquibase.structure.core.Column;
 import liquibase.structure.core.ForeignKey;
 import liquibase.structure.core.Index;
@@ -97,8 +96,10 @@ public class DmForeignKeySnapshotGenerator extends ForeignKeySnapshotGenerator {
     private ForeignKey createForeignKey(CachedRow row, DatabaseSnapshot snapshot) throws DatabaseException {
         Database database = snapshot.getDatabase();
         ForeignKey foreignKey = new ForeignKey().setName(row.getString("FK_NAME"));
+        CatalogAndSchema fkSchema = ((AbstractJdbcDatabase) database).getSchemaFromJdbcInfo(
+                row.getString("FKTABLE_CAT"), row.getString("FKTABLE_SCHEM"));
         Table fkTable = new Table().setName(row.getString("FKTABLE_NAME"));
-        fkTable.setSchema(new Schema(new Catalog(row.getString("FKTABLE_CAT")), row.getString("FKTABLE_SCHEM")));
+        fkTable.setSchema(new Schema(fkSchema.getCatalogName(), fkSchema.getSchemaName()));
         foreignKey.setForeignKeyTable(fkTable);
 
         CatalogAndSchema pkSchema = ((AbstractJdbcDatabase) database).getSchemaFromJdbcInfo(
@@ -109,9 +110,11 @@ public class DmForeignKeySnapshotGenerator extends ForeignKeySnapshotGenerator {
         foreignKey.setUpdateRule(convertToForeignKeyConstraintType(row.getInt("UPDATE_RULE"), database));
         foreignKey.setDeleteRule(convertToForeignKeyConstraintType(row.getInt("DELETE_RULE"), database));
 
-        short deferrability = row.getShort("DEFERRABILITY");
-        foreignKey.setDeferrable(deferrability != DatabaseMetaData.importedKeyNotDeferrable);
-        foreignKey.setInitiallyDeferred(deferrability == DatabaseMetaData.importedKeyInitiallyDeferred);
+        Short deferrability = row.getShort("DEFERRABILITY");
+        foreignKey.setDeferrable(deferrability != null
+                && deferrability != DatabaseMetaData.importedKeyNotDeferrable);
+        foreignKey.setInitiallyDeferred(deferrability != null
+                && deferrability == DatabaseMetaData.importedKeyInitiallyDeferred);
         foreignKey.setShouldValidate("VALIDATED".equalsIgnoreCase(row.getString("FK_VALIDATE")));
         return foreignKey;
     }

@@ -120,7 +120,7 @@ final class DmSnapshotQueries {
                 "uc.DEFERRABLE, uc.DEFERRED, ui.TABLESPACE_NAME, ui.INDEX_NAME, ui.OWNER AS INDEX_CATALOG, " +
                 "uc.VALIDATED AS CONSTRAINT_VALIDATE, ac.COLUMN_NAME, ac.POSITION, " +
                 "CASE ic.DESCEND WHEN 'Y' THEN 'D' WHEN 'DESC' THEN 'D' ELSE 'A' END AS ASC_OR_DESC " +
-                "FROM ALL_CONSTRAINTS uc JOIN ALL_INDEXES ui " +
+                "FROM ALL_CONSTRAINTS uc LEFT JOIN ALL_INDEXES ui " +
                 "ON ui.OWNER=uc.OWNER AND ui.TABLE_OWNER=uc.OWNER AND ui.TABLE_NAME=uc.TABLE_NAME " +
                 "AND ui.INDEX_NAME=uc.INDEX_NAME LEFT JOIN ALL_CONS_COLUMNS ac " +
                 "ON ac.OWNER=uc.OWNER AND ac.TABLE_NAME=uc.TABLE_NAME AND ac.CONSTRAINT_NAME=uc.CONSTRAINT_NAME " +

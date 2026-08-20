@@ -1,7 +1,7 @@
 package com.github.mengweijin.liquibase.dameng.datatype;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.datatype.DataTypeInfo;
 import liquibase.datatype.DatabaseDataType;
 import liquibase.datatype.LiquibaseDataType;

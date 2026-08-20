@@ -1,9 +1,9 @@
 package com.github.mengweijin.liquibase.dameng.snapshot;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.CatalogAndSchema;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
-import liquibase.database.core.DmDatabase;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
 import liquibase.snapshot.DatabaseSnapshot;
@@ -38,6 +38,9 @@ public class DmPrimaryKeySnapshotGenerator extends PrimaryKeySnapshotGenerator {
             throws DatabaseException, InvalidExampleException {
         PrimaryKey requested = (PrimaryKey) example;
         String tableName = requested.getTable() == null ? null : requested.getTable().getName();
+        if (tableName == null && example.getName() == null) {
+            return null;
+        }
         List<CachedRow> rows = DmSnapshotQueries.primaryKeys(snapshot, example.getSchema(), tableName);
         PrimaryKey result = null;
         for (CachedRow row : rows) {

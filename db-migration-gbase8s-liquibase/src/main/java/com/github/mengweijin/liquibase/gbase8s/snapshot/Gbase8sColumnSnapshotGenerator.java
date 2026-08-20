@@ -16,6 +16,7 @@ import liquibase.structure.core.Column;
 import liquibase.structure.core.DataType;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -63,7 +64,7 @@ public class Gbase8sColumnSnapshotGenerator extends ColumnSnapshotGeneratorInfor
 
     @Override
     protected DataType readDataType(CachedRow row, Column column, Database database) throws DatabaseException {
-        String typeName = row.getString("TYPE_NAME").toUpperCase();
+        String typeName = row.getString("TYPE_NAME").toUpperCase(Locale.ROOT);
         if (!"DATETIME".equals(typeName) && !"INTERVAL".equals(typeName)) {
             return super.readDataType(row, column, database);
         }

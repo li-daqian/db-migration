@@ -18,6 +18,8 @@ jobs:
       DM_JDBC_PASSWORD: ${{ secrets.DM_JDBC_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -28,6 +30,7 @@ jobs:
       - name: Duplicate FQCN gate
         run: >-
           mvn --batch-mode --no-transfer-progress -pl db-migration-dameng-liquibase
+          test-compile
           org.basepom.maven:duplicate-finder-maven-plugin:2.0.1:check
           -DcheckCompileClasspath=true
           -DcheckRuntimeClasspath=true
@@ -39,6 +42,4 @@ jobs:
         if: ${{ env.DM_JDBC_URL != '' && env.DM_JDBC_USERNAME != '' && env.DM_JDBC_PASSWORD != '' }}
         run: >-
           mvn --batch-mode --no-transfer-progress -pl db-migration-dameng-liquibase -am
-          -Pdm-integration test-compile
-          org.apache.maven.plugins:maven-failsafe-plugin:3.5.5:integration-test
-          org.apache.maven.plugins:maven-failsafe-plugin:3.5.5:verify
+          -Pdm-integration integration-test

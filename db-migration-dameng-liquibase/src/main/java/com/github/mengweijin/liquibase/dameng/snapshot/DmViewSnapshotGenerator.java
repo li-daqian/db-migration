@@ -1,10 +1,10 @@
 package com.github.mengweijin.liquibase.dameng.snapshot;
 
+import com.github.mengweijin.liquibase.dameng.database.DmDatabase;
 import liquibase.CatalogAndSchema;
 import liquibase.database.Database;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.ObjectQuotingStrategy;
-import liquibase.database.core.DmDatabase;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
 import liquibase.snapshot.DatabaseSnapshot;
@@ -67,9 +67,10 @@ public class DmViewSnapshotGenerator extends ViewSnapshotGenerator {
         }
         Schema schema = (Schema) foundObject;
         for (CachedRow row : DmSnapshotQueries.views(snapshot, schema, null)) {
-            View view = new View().setName(row.getString("TABLE_NAME"));
+            View view = new View().setName(
+                    cleanNameFromDatabase(row.getString("TABLE_NAME"), snapshot.getDatabase()));
             view.setSchema(schema);
-            view.setRemarks(row.getString("REMARKS"));
+            view.setRemarks(StringUtil.trimToNull(row.getString("REMARKS")));
             view.setDefinition(StringUtil.standardizeLineEndings(row.getString("OBJECT_BODY")));
             schema.addDatabaseObject(view);
         }

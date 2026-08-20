@@ -14,10 +14,7 @@ Run the DM database regression suite with a disposable schema:
 export DM_JDBC_URL='jdbc:dm://localhost:5236'
 export DM_JDBC_USERNAME='LIQUIBASE_TEST'
 export DM_JDBC_PASSWORD='change-me'
-mvn -pl db-migration-dameng-liquibase -am -Pdm-integration \
-  test-compile \
-  org.apache.maven.plugins:maven-failsafe-plugin:3.5.5:integration-test \
-  org.apache.maven.plugins:maven-failsafe-plugin:3.5.5:verify
+mvn -pl db-migration-dameng-liquibase -am -Pdm-integration integration-test
 ```
 
 The integration test covers update, status, rollback, re-update, lock acquisition/release, snapshot, and diff.

@@ -15,9 +15,12 @@ import java.util.ServiceLoader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClasspathOrderIndependenceTest {
+
+    private static final String LIQUIBASE_CORE_JAR_PREFIX = "liquibase-core-";
 
     @ParameterizedTest(name = "extensionFirst={0}")
     @ValueSource(booleans = {false, true})
@@ -31,10 +34,13 @@ class ClasspathOrderIndependenceTest {
             try {
                 Class<?> abstractJdbcDatabase = loader.loadClass("liquibase.database.AbstractJdbcDatabase");
                 Class<?> databaseConnection = loader.loadClass("liquibase.database.DatabaseConnection");
-                Class<?> dmDatabaseClass = loader.loadClass("liquibase.database.core.DmDatabase");
+                Class<?> dmDatabaseClass = loader.loadClass(
+                        "com.github.mengweijin.liquibase.dameng.database.DmDatabase");
 
-                assertTrue(codeSource(abstractJdbcDatabase).contains("liquibase-core-5.0.3.jar"));
+                assertTrue(isLiquibaseCoreJar(codeSource(abstractJdbcDatabase)));
                 assertTrue(codeSource(dmDatabaseClass).endsWith("db-migration-dameng-liquibase/target/classes/"));
+                assertThrows(ClassNotFoundException.class,
+                        () -> loader.loadClass("liquibase.database.core.DmDatabase"));
                 assertFalse(Arrays.stream(abstractJdbcDatabase.getDeclaredMethods())
                         .anyMatch(method -> method.getName().equals("setSuperConnection")));
 
@@ -68,7 +74,7 @@ class ClasspathOrderIndependenceTest {
             String path = url.getPath();
             if (path.endsWith("db-migration-dameng-liquibase/target/classes/")) {
                 extension = url;
-            } else if (path.endsWith("liquibase-core-5.0.3.jar")) {
+            } else if (isLiquibaseCoreJar(path)) {
                 core = url;
             } else {
                 remaining.add(url);
@@ -97,6 +103,12 @@ class ClasspathOrderIndependenceTest {
     private String codeSource(Class<?> type) throws Exception {
         URI uri = type.getProtectionDomain().getCodeSource().getLocation().toURI();
         return uri.toString();
+    }
+
+    private boolean isLiquibaseCoreJar(String path) {
+        int fileNameStart = path.lastIndexOf('/') + 1;
+        String fileName = path.substring(fileNameStart);
+        return fileName.startsWith(LIQUIBASE_CORE_JAR_PREFIX) && fileName.endsWith(".jar");
     }
 
     private void assertDmDataTypeSelected(ClassLoader loader, Object dmDatabase, String description,
