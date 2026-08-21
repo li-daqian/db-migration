@@ -18,7 +18,6 @@ import liquibase.structure.core.Index;
 import liquibase.structure.core.Schema;
 import liquibase.structure.core.Table;
 
-import java.sql.DatabaseMetaData;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -110,13 +109,20 @@ public class DmForeignKeySnapshotGenerator extends ForeignKeySnapshotGenerator {
         foreignKey.setUpdateRule(convertToForeignKeyConstraintType(row.getInt("UPDATE_RULE"), database));
         foreignKey.setDeleteRule(convertToForeignKeyConstraintType(row.getInt("DELETE_RULE"), database));
 
-        Short deferrability = row.getShort("DEFERRABILITY");
-        foreignKey.setDeferrable(deferrability != null
-                && deferrability != DatabaseMetaData.importedKeyNotDeferrable);
-        foreignKey.setInitiallyDeferred(deferrability != null
-                && deferrability == DatabaseMetaData.importedKeyInitiallyDeferred);
+        setDeferrability(foreignKey, row);
         foreignKey.setShouldValidate("VALIDATED".equalsIgnoreCase(row.getString("FK_VALIDATE")));
         return foreignKey;
+    }
+
+    static void setDeferrability(ForeignKey foreignKey, CachedRow row) {
+        boolean deferrable = matchesCatalogValue(row.getString("FK_DEFERRABLE"), "DEFERRABLE");
+        foreignKey.setDeferrable(deferrable);
+        foreignKey.setInitiallyDeferred(deferrable
+                && matchesCatalogValue(row.getString("FK_DEFERRED"), "DEFERRED"));
+    }
+
+    private static boolean matchesCatalogValue(String actual, String expected) {
+        return actual != null && expected.equalsIgnoreCase(actual.trim());
     }
 
     private boolean containsColumn(ForeignKey foreignKey, Column candidate, DatabaseSnapshot snapshot) {

@@ -145,8 +145,7 @@ final class DmSnapshotQueries {
                 " WHEN 'SET NULL' THEN " + DatabaseMetaData.importedKeySetNull +
                 " ELSE " + DatabaseMetaData.importedKeyNoAction + " END AS DELETE_RULE, " +
                 "fk.CONSTRAINT_NAME AS FK_NAME, pk.CONSTRAINT_NAME AS PK_NAME, " +
-                "CASE fk.DEFERRABLE WHEN 'DEFERRABLE' THEN " + DatabaseMetaData.importedKeyInitiallyImmediate +
-                " ELSE " + DatabaseMetaData.importedKeyNotDeferrable + " END AS DEFERRABILITY, " +
+                "fk.DEFERRABLE AS FK_DEFERRABLE, fk.DEFERRED AS FK_DEFERRED, " +
                 "fk.VALIDATED AS FK_VALIDATE " +
                 "FROM ALL_CONSTRAINTS fk JOIN ALL_CONS_COLUMNS fkc " +
                 "ON fkc.OWNER=fk.OWNER AND fkc.TABLE_NAME=fk.TABLE_NAME AND fkc.CONSTRAINT_NAME=fk.CONSTRAINT_NAME " +

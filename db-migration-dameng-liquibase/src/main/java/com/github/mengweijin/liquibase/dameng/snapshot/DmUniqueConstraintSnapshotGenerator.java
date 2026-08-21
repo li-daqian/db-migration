@@ -44,8 +44,7 @@ public class DmUniqueConstraintSnapshotGenerator extends UniqueConstraintSnapsho
         CachedRow first = rows.get(0);
         UniqueConstraint result = new UniqueConstraint().setName(first.getString("CONSTRAINT_NAME"))
                 .setRelation(relation);
-        result.setBackingIndex(new Index(first.getString("INDEX_NAME"), first.getString("INDEX_CATALOG"),
-                first.getString("CONSTRAINT_SCHEM"), relation.getName()));
+        setBackingIndexIfPresent(result, first, relation);
         result.setShouldValidate("VALIDATED".equalsIgnoreCase(first.getString("CONSTRAINT_VALIDATE")));
         for (CachedRow row : rows) {
             String columnName = row.getString("COLUMN_NAME");
@@ -73,10 +72,18 @@ public class DmUniqueConstraintSnapshotGenerator extends UniqueConstraintSnapsho
             String name = row.getString("CONSTRAINT_NAME");
             if (seen.add(name)) {
                 UniqueConstraint constraint = new UniqueConstraint().setName(name).setRelation(table);
-                constraint.setBackingIndex(new Index(row.getString("INDEX_NAME"), row.getString("INDEX_CATALOG"),
-                        row.getString("CONSTRAINT_SCHEM"), table.getName()));
+                setBackingIndexIfPresent(constraint, row, table);
                 table.getUniqueConstraints().add(constraint);
             }
         }
+    }
+
+    static void setBackingIndexIfPresent(UniqueConstraint constraint, CachedRow row, Relation relation) {
+        String indexName = row.getString("INDEX_NAME");
+        if (indexName == null || indexName.isBlank()) {
+            return;
+        }
+        constraint.setBackingIndex(new Index(indexName, row.getString("INDEX_CATALOG"),
+                row.getString("CONSTRAINT_SCHEM"), relation.getName()));
     }
 }
