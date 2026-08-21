@@ -11,6 +11,7 @@ import liquibase.statement.core.RawParameterizedSqlStatement;
 import liquibase.structure.core.Schema;
 
 import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,18 +53,73 @@ final class DmSnapshotQueries {
     }
 
     static List<CachedRow> tables(DatabaseSnapshot snapshot, Schema schema, String tableName) throws DatabaseException {
-        StringBuilder sql = new StringBuilder(
-                "SELECT NULL AS TABLE_CAT, a.OWNER AS TABLE_SCHEM, a.TABLE_NAME, a.TEMPORARY, a.DURATION, " +
-                "'TABLE' AS TABLE_TYPE, c.COMMENTS AS REMARKS, a.TABLESPACE_NAME, " +
-                "CASE WHEN a.TABLESPACE_NAME=(SELECT DEFAULT_TABLESPACE FROM USER_USERS) " +
-                "THEN 'true' ELSE NULL END AS DEFAULT_TABLESPACE " +
-                "FROM ALL_TABLES a LEFT JOIN ALL_TAB_COMMENTS c " +
-                "ON c.OWNER=a.OWNER AND c.TABLE_NAME=a.TABLE_NAME WHERE a.OWNER=?");
+        StringBuilder sql = new StringBuilder(tablesSql());
         List<Object> parameters = new ArrayList<>();
-        parameters.add(schemaName(snapshot.getDatabase(), schema));
+        Database database = snapshot.getDatabase();
+        String schemaName = schemaName(database, schema);
+        parameters.add(schemaName);
         appendFilter(sql, parameters, "a.TABLE_NAME", tableName);
         sql.append(" ORDER BY a.TABLE_NAME");
-        return query(snapshot.getDatabase(), sql.toString(), parameters);
+        List<CachedRow> rows = query(database, sql.toString(), parameters);
+        String defaultTablespace = defaultTablespace(database, schemaName);
+        for (CachedRow row : rows) {
+            String tablespace = row.getString("TABLESPACE_NAME");
+            row.set("DEFAULT_TABLESPACE", tablespace != null && defaultTablespace != null
+                    && tablespace.equalsIgnoreCase(defaultTablespace) ? "true" : null);
+        }
+        return rows;
+    }
+
+    static String tablesSql() {
+        return "SELECT NULL AS TABLE_CAT, a.OWNER AS TABLE_SCHEM, a.TABLE_NAME, a.TEMPORARY, a.DURATION, " +
+                "'TABLE' AS TABLE_TYPE, c.COMMENTS AS REMARKS, a.TABLESPACE_NAME " +
+                "FROM ALL_TABLES a LEFT JOIN ALL_TAB_COMMENTS c " +
+                "ON c.OWNER=a.OWNER AND c.TABLE_NAME=a.TABLE_NAME WHERE a.OWNER=?";
+    }
+
+    static String schemaOwnerDefaultTablespaceSql() {
+        return "SELECT u.DEFAULT_TABLESPACE FROM SYSOBJECTS s JOIN DBA_USERS u ON u.USER_ID=s.PID " +
+                "WHERE s.NAME=? AND s.TYPE$='SCH'";
+    }
+
+    private static String defaultTablespace(Database database, String schemaName) throws DatabaseException {
+        String connectionUser = database.getConnection().getConnectionUserName();
+        boolean currentUserSchema = equalsIgnoreCase(schemaName, connectionUser);
+        if (currentUserSchema) {
+            return firstValue(query(database, "SELECT DEFAULT_TABLESPACE FROM USER_USERS", List.of()),
+                    "DEFAULT_TABLESPACE");
+        }
+
+        try {
+            return firstValue(query(database, schemaOwnerDefaultTablespaceSql(), List.of(schemaName)),
+                    "DEFAULT_TABLESPACE");
+        } catch (DatabaseException e) {
+            if (!isMissingCatalogPrivilege(e)) {
+                throw e;
+            }
+            Scope.getCurrentScope().getLog(DmSnapshotQueries.class).fine(
+                    "Unable to read the default tablespace for DM schema " + schemaName, e);
+            return null;
+        }
+    }
+
+    private static String firstValue(List<CachedRow> rows, String column) {
+        return rows.isEmpty() ? null : rows.get(0).getString(column);
+    }
+
+    private static boolean equalsIgnoreCase(String left, String right) {
+        return left != null && right != null && left.equalsIgnoreCase(right);
+    }
+
+    private static boolean isMissingCatalogPrivilege(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof SQLException && ((SQLException) current).getErrorCode() == -5504) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     static List<CachedRow> views(DatabaseSnapshot snapshot, Schema schema, String viewName) throws DatabaseException {

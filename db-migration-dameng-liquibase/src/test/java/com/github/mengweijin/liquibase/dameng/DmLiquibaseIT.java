@@ -131,6 +131,7 @@ class DmLiquibaseIT {
                 assertAll(
                         () -> assertTrue(control.shouldInclude(UniqueConstraint.class)),
                         () -> assertEquals(2, parent.getColumns().size()),
+                        () -> assertTrue(parent.isDefaultTablespace()),
                         () -> assertTrue(parent.getPrimaryKey() != null),
                         () -> assertFalse(parent.getUniqueConstraints().isEmpty()),
                         () -> assertEquals(3, child.getColumns().size()),
